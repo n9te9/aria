@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Aria Chat</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #messages { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto; }
+    #input { margin-top: 10px; width: 80%; }
+    #send { width: 15%; }
+  </style>
+</head>
+<body>
+  <h1>Aria Chat</h1>
+  <div id="messages"></div>
+  <input id="input" type="text" placeholder="メッセージを入力..." />
+  <button id="send">送信</button>
+
+  <script>
+    const ws = new WebSocket("ws://localhost:8080/ws");
+    const messages = document.getElementById("messages");
+    const input = document.getElementById("input");
+    const send = document.getElementById("send");
+
+    ws.onmessage = (event) => {
+      const div = document.createElement("div");
+      div.textContent = event.data;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    };
+
+    send.onclick = () => {
+      if (input.value) {
+        ws.send(input.value);
+        input.value = "";
+      }
+    };
+
+    input.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") send.onclick();
+    });
+  </script>
+</body>
+</html>
