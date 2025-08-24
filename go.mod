@@ -1,4 +1,4 @@
-module github.com/n9te9/aira
+module github.com/n9te9/aria
 
 go 1.24.4
 
