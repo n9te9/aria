@@ -132,14 +132,12 @@ func (a *aria) run(ctx context.Context, c *Conn) (e error) {
 
 					return nil
 				}
+			}
 
-				if a.onDisconnect != nil {
-					if err := a.onDisconnect(ctx, c); err != nil {
-						return err
-					}
+			if a.onDisconnect != nil {
+				if err := a.onDisconnect(ctx, c); err != nil {
+					return err
 				}
-
-				return nil
 			}
 
 			e = err
