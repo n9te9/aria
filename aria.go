@@ -106,12 +106,16 @@ func (a *aria) HandleWithContext(ctx context.Context, w http.ResponseWriter, r *
 
 	go func(c *Conn) {
 		if err := a.run(ctx, c); err != nil {
-			a.onError(ctx, c, err)
+			if a.onError != nil {
+				a.onError(ctx, c, err)
+			}
 		}
 	}(ariaConn)
 
 	return nil
 }
+
+const cannotClassifyStatus = -1
 
 func (a *aria) run(ctx context.Context, c *Conn) (e error) {
 	defer func() {
@@ -123,8 +127,8 @@ func (a *aria) run(ctx context.Context, c *Conn) (e error) {
 	for {
 		typ, msg, err := c.conn.Read(ctx)
 		if err != nil {
-			var closeError *websocket.CloseError
-			if errors.As(err, &closeError) {
+			switch websocket.CloseStatus(err) {
+			case websocket.StatusNormalClosure, websocket.StatusGoingAway, websocket.StatusNoStatusRcvd:
 				if a.onClose != nil {
 					if cerr := a.onClose(ctx, c); cerr != nil {
 						return cerr
@@ -132,11 +136,11 @@ func (a *aria) run(ctx context.Context, c *Conn) (e error) {
 
 					return nil
 				}
-			}
-
-			if a.onDisconnect != nil {
-				if err := a.onDisconnect(ctx, c); err != nil {
-					return err
+			case websocket.StatusAbnormalClosure, websocket.StatusMessageTooBig, websocket.StatusBadGateway, cannotClassifyStatus, websocket.StatusInvalidFramePayloadData:
+				if a.onDisconnect != nil {
+					if derr := a.onDisconnect(ctx, c); derr != nil {
+						return derr
+					}
 				}
 			}
 
@@ -174,14 +178,8 @@ func (a *aria) BroadCast(ctx context.Context, message []byte) error {
 	for conn := range a.conns {
 		if err := conn.conn.Write(ctx, websocket.MessageText, message); err != nil {
 			failedConns = append(failedConns, conn)
-
-			var closeError *websocket.CloseError
-			if errors.As(err, &closeError) {
-				if a.onClose != nil {
-					if cerr := a.onClose(ctx, conn); cerr != nil {
-						errs = append(errs, cerr)
-					}
-				}
+			if a.onError != nil {
+				a.onError(ctx, conn, err)
 			}
 
 			errs = append(errs, err)
@@ -208,14 +206,8 @@ func (a *aria) BroadCastFilter(ctx context.Context, message []byte, filter Filte
 		if filter(conn) {
 			if err := conn.conn.Write(ctx, websocket.MessageText, message); err != nil {
 				failedConns = append(failedConns, conn)
-
-				var closeError *websocket.CloseError
-				if errors.As(err, &closeError) {
-					if a.onClose != nil {
-						if cerr := a.onClose(ctx, conn); cerr != nil {
-							errs = append(errs, cerr)
-						}
-					}
+				if a.onError != nil {
+					a.onError(ctx, conn, err)
 				}
 
 				errs = append(errs, err)

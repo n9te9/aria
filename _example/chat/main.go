@@ -15,20 +15,16 @@ func main() {
 		aria.WithComporessionMode(int(websocket.CompressionDisabled)),
 	)
 
-	// 接続イベント
 	a.OnConnect(func(ctx context.Context, conn *aria.Conn) error {
 		log.Println("new connection")
 		return nil
 	})
 
-	// メッセージ受信イベント
 	a.OnMessage(func(ctx context.Context, conn *aria.Conn, message []byte) error {
 		log.Printf("received: %s\n", string(message))
-		// 全員に送信
 		return a.BroadCast(ctx, message)
 	})
 
-	// エラーイベント
 	a.OnError(func(ctx context.Context, conn *aria.Conn, err error) {
 		log.Println("error:", err)
 	})
@@ -39,7 +35,6 @@ func main() {
 		}
 	})
 
-	// 静的ファイル（index.html）を配信
 	http.Handle("/", http.FileServer(http.Dir("./static")))
 
 	fmt.Println("server started at http://localhost:8080")

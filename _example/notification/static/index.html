@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Aria Notification Example</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #messages { border: 1px solid #ccc; padding: 10px; height: 200px; overflow-y: auto; margin-top: 10px; }
+    button { margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Notification Example</h1>
+
+  <button id="connect">Connect</button>
+  <button id="disconnect" disabled>Disconnect (Normal)</button>
+  <button id="disconnectAbnormal" disabled>Disconnect (Abnormal)</button>
+
+  <div id="messages"></div>
+
+  <script>
+    let ws = null;
+    const messages = document.getElementById("messages");
+    const connectBtn = document.getElementById("connect");
+    const disconnectBtn = document.getElementById("disconnect");
+    const disconnectAbnormalBtn = document.getElementById("disconnectAbnormal");
+
+    function logMessage(msg) {
+      const div = document.createElement("div");
+      div.textContent = msg;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function setButtons(connected) {
+      connectBtn.disabled = connected;
+      disconnectBtn.disabled = !connected;
+      disconnectAbnormalBtn.disabled = !connected;
+    }
+
+    connectBtn.onclick = () => {
+      ws = new WebSocket("ws://localhost:8080/ws");
+
+      ws.onopen = () => {
+        logMessage("Connected to server");
+        setButtons(true);
+      };
+
+      ws.onmessage = (event) => {
+        logMessage("Notification: " + event.data);
+      };
+
+      ws.onclose = (event) => {
+        if (event.wasClean) {
+          logMessage("OnClose: Normal closure (code=" + event.code + ")");
+        } else {
+          logMessage("OnDisconnect: Abnormal closure (code=" + event.code + ")");
+        }
+        setButtons(false);
+      };
+
+      ws.onerror = (err) => {
+        logMessage("Error: " + err);
+      };
+    };
+
+    disconnectBtn.onclick = () => {
+      if (ws) {
+        ws.close(1000, "Normal Closure");
+        ws = null;
+      }
+    };
+
+    disconnectAbnormalBtn.onclick = () => {
+      const bigMessage = "x".repeat(10 * 1024 * 1024); 
+      ws.send(bigMessage);
+      logMessage("Sent huge message to trigger disconnect");
+    };
+  </script>
+</body>
+</html>
